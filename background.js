@@ -1,5 +1,18 @@
 const ENTRY_HOST = "playentry.org";
 
+const ALLOWED_HOSTS = [
+    "playentry.org",
+    "img.bloupla.net"
+];
+
+const defaultData = {
+    securityLevel: "strong",
+    blockedHistory: [],
+    reports: {}
+};
+
+
+// 확장 프로그램 설치
 chrome.runtime.onInstalled.addListener(async () => {
 
     const data = await chrome.storage.local.get([
@@ -16,10 +29,10 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 
+// 웹사이트 접속 감지
 chrome.webNavigation.onCommitted.addListener(
     async details => {
 
-        // 메인 프레임만 검사
         if (details.frameId !== 0) {
             return;
         }
@@ -35,6 +48,7 @@ chrome.webNavigation.onCommitted.addListener(
 );
 
 
+// URL 검사
 async function inspectURL(tabId, url) {
 
     const data = await chrome.storage.local.get([
@@ -42,13 +56,18 @@ async function inspectURL(tabId, url) {
         "reports"
     ]);
 
-    const level = data.securityLevel || "strong";
-    const reports = data.reports || {};
+    const level =
+        data.securityLevel || "strong";
+
+    const reports =
+        data.reports || {};
+
 
     // 해제
     if (level === "off") {
         return;
     }
+
 
     let parsed;
 
@@ -58,77 +77,77 @@ async function inspectURL(tabId, url) {
         return;
     }
 
-    // Entry는 통과
-    if (isEntryURL(parsed)) {
+
+    // 허용된 사이트
+    if (isAllowedURL(parsed)) {
         return;
     }
+
 
     const reportCount =
         reports[parsed.origin] || 0;
 
 
-    /*
-     * 강함:
-     * 1명 이상 신고 → 자동 차단
-     */
+    // 강함: 1명 이상 신고
     if (
         level === "strong" &&
         reportCount >= 1
     ) {
 
-        await block(
+        await blockURL(
             tabId,
             url,
-            `해킹 링크로 신고됨 (${reportCount}명)`
+            "해킹 링크로 신고됨",
+            reportCount
         );
 
         return;
     }
 
 
-    /*
-     * 약함:
-     * 3명 이상 신고 → 자동 차단
-     */
+    // 약함: 3명 이상 신고
     if (
         level === "weak" &&
         reportCount >= 3
     ) {
 
-        await block(
+        await blockURL(
             tabId,
             url,
-            `3명 이상이 해킹 링크로 신고함`
+            "3명 이상이 해킹 링크로 신고함",
+            reportCount
         );
 
         return;
     }
 
 
-    /*
-     * Entry가 아닌 외부 사이트
-     * → 사용자 확인
-     */
+    // Entry가 아닌 사이트
     await askUser(
         tabId,
         url,
-        "최종 링크가 Entry 사이트가 아닙니다."
+        "Entry 사이트가 아닌 외부 사이트입니다."
     );
 }
 
 
-function isEntryURL(url) {
+// 허용 사이트 검사
+function isAllowedURL(url) {
 
     const hostname =
         url.hostname.toLowerCase();
 
-    return (
-        hostname === ENTRY_HOST ||
-        hostname.endsWith("." + ENTRY_HOST)
-    );
+    return ALLOWED_HOSTS.some(host => {
+
+        return (
+            hostname === host ||
+            hostname.endsWith("." + host)
+        );
+    });
 }
 
 
+// 사용자 확인 페이지
 async function askUser(
     tabId,
     url,
@@ -136,9 +155,7 @@ async function askUser(
 ) {
 
     const warningURL =
-        chrome.runtime.getURL(
-            "warning.html"
-        ) +
+        chrome.runtime.getURL("warning.html") +
         "?target=" +
         encodeURIComponent(url) +
         "&reason=" +
@@ -153,27 +170,30 @@ async function askUser(
 }
 
 
-async function block(
+// 링크 차단
+async function blockURL(
     tabId,
     url,
-    reason
+    reason,
+    reportCount
 ) {
 
     await saveBlock(
         url,
-        reason
+        reason,
+        reportCount
     );
 
+
     const warningURL =
-        chrome.runtime.getURL(
-            "warning.html"
-        ) +
+        chrome.runtime.getURL("warning.html") +
         "?target=" +
         encodeURIComponent(url) +
         "&reason=" +
         encodeURIComponent(
-            "entV1이 이 링크를 차단했습니다."
+            "entV1이 위험한 링크를 차단했습니다."
         );
+
 
     await chrome.tabs.update(
         tabId,
@@ -184,9 +204,11 @@ async function block(
 }
 
 
+// 차단 기록 저장
 async function saveBlock(
     url,
-    reason
+    reason,
+    reportCount
 ) {
 
     const data =
@@ -197,11 +219,14 @@ async function saveBlock(
     const history =
         data.blockedHistory || [];
 
+
     history.push({
         url: url,
         reason: reason,
+        reportCount: reportCount,
         time: Date.now()
     });
+
 
     await chrome.storage.local.set({
         blockedHistory:
