@@ -2,98 +2,230 @@
     box-sizing: border-box;
 }
 
+
 body {
     width: 380px;
-    min-height: 450px;
+    min-height: 500px;
+
     margin: 0;
     padding: 20px;
-    font-family: Arial, sans-serif;
+
     background: #101114;
     color: white;
+
+    font-family: Arial, sans-serif;
 }
+
 
 h1 {
     margin: 0 0 25px;
+
     text-align: center;
 }
 
+
 .security-level {
     display: flex;
+
     align-items: flex-start;
     justify-content: center;
-    margin-bottom: 30px;
+
+    margin-bottom: 25px;
 }
+
 
 .level {
     width: 95px;
+
+    padding: 0;
+
     border: 0;
+
     background: transparent;
+
     color: white;
+
     cursor: pointer;
 }
+
 
 .circle {
     width: 42px;
     height: 42px;
+
     margin: 0 auto 8px;
-    border: 3px solid #777;
+
+    border: 3px solid #666;
+
     border-radius: 50%;
 }
 
+
 .level.active .circle {
     border-color: #4da3ff;
-    box-shadow: 0 0 12px #4da3ff;
+
+    box-shadow:
+        0 0 12px #4da3ff;
 }
+
 
 .level strong {
     display: block;
+
     font-size: 15px;
 }
 
+
 .level small {
     display: block;
+
     margin-top: 5px;
+
     color: #999;
+
     font-size: 11px;
 }
+
 
 .line {
     width: 35px;
     height: 3px;
+
     margin-top: 20px;
+
     background: #555;
 }
 
-.blocked {
-    border-top: 1px solid #333;
-    padding-top: 15px;
+
+/* 링크 신고 */
+
+.report-section {
+    margin-bottom: 20px;
+
+    padding-bottom: 18px;
+
+    border-bottom: 1px solid #333;
 }
 
-.blocked h2 {
-    margin: 0 0 12px;
+
+.report-section h2 {
+    margin: 0 0 10px;
+
     font-size: 16px;
 }
 
+
+#reportURL {
+    width: 100%;
+
+    padding: 10px;
+
+    border: 1px solid #444;
+
+    border-radius: 7px;
+
+    outline: none;
+
+    background: #1b1d22;
+
+    color: white;
+
+    font-size: 12px;
+}
+
+
+#reportURL:focus {
+    border-color: #4da3ff;
+}
+
+
+#reportButton {
+    width: 100%;
+
+    margin-top: 8px;
+
+    padding: 10px;
+
+    border: 0;
+
+    border-radius: 7px;
+
+    background: #ff5555;
+
+    color: white;
+
+    cursor: pointer;
+}
+
+
+#reportButton:hover {
+    background: #ff4444;
+}
+
+
+#reportMessage {
+    margin: 8px 0 0;
+
+    color: #aaa;
+
+    font-size: 11px;
+}
+
+
+/* 차단 기록 */
+
+.blocked {
+    padding-top: 0;
+}
+
+
+.blocked h2 {
+    margin: 0 0 12px;
+
+    font-size: 16px;
+}
+
+
 .block-item {
     margin-bottom: 10px;
+
     padding: 12px;
+
     border-radius: 8px;
+
     background: #1b1d22;
 }
 
+
 .block-item .url {
     word-break: break-all;
+
     color: #ff7777;
+
     font-size: 12px;
 }
+
 
 .block-item .reason {
     margin-top: 6px;
+
     color: #ccc;
+
     font-size: 12px;
 }
 
+
+.block-item .reports {
+    margin-top: 5px;
+
+    color: #aaa;
+
+    font-size: 11px;
+}
+
+
 .empty {
     color: #777;
+
     font-size: 13px;
 }
