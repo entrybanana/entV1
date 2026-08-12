@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>entV1</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+
+    <h1>entV1</h1>
+
+    <div class="security-level">
+
+        <button class="level" data-level="off">
+            <div class="circle"></div>
+            <strong>해제</strong>
+            <small>안전도 : 위험</small>
+        </button>
+
+        <div class="line"></div>
+
+        <button class="level" data-level="weak">
+            <div class="circle"></div>
+            <strong>약함</strong>
+            <small>안전도 : 중간</small>
+        </button>
+
+        <div class="line"></div>
+
+        <button class="level" data-level="strong">
+            <div class="circle"></div>
+            <strong>강함</strong>
+            <small>안전도 : 매우 안전</small>
+        </button>
+
+    </div>
+
+    <section class="blocked">
+        <h2>차단 기록</h2>
+        <div id="blockedList">
+            <p class="empty">차단된 항목이 없습니다.</p>
+        </div>
+    </section>
+
+    <script src="popup.js"></script>
+
+</body>
+</html>
