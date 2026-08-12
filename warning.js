@@ -7,7 +7,6 @@ const target =
 const reason =
     params.get("reason");
 
-
 document.getElementById("url").textContent =
     target || "알 수 없는 주소";
 
@@ -18,9 +17,31 @@ document.getElementById("message").textContent =
 
 // 차단
 document.getElementById("block")
-    .addEventListener("click", () => {
+    .addEventListener("click", async () => {
 
-        window.history.back();
+        // 이전에 허용했던 기록이 있다면 제거
+        if (target) {
+
+            const data =
+                await chrome.storage.local.get(
+                    "allowedOnce"
+                );
+
+            const allowedOnce =
+                data.allowedOnce || [];
+
+            await chrome.storage.local.set({
+                allowedOnce:
+                    allowedOnce.filter(
+                        url => url !== target
+                    )
+            });
+        }
+
+        // 차단 후 Entry로 이동
+        window.location.replace(
+            "https://playentry.org/"
+        );
     });
 
 
@@ -32,8 +53,6 @@ document.getElementById("allow")
             return;
         }
 
-
-        // 이 URL은 사용자가 직접 허용했다는 기록
         const data =
             await chrome.storage.local.get(
                 "allowedOnce"
@@ -41,7 +60,6 @@ document.getElementById("allow")
 
         const allowedOnce =
             data.allowedOnce || [];
-
 
         if (!allowedOnce.includes(target)) {
 
@@ -52,7 +70,5 @@ document.getElementById("allow")
             });
         }
 
-
-        // 실제 사이트로 이동
         window.location.href = target;
     });
