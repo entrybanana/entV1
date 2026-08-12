@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "entV1",
-  "version": "1.0.0",
-  "description": "웹사이트와 리디렉션을 검사하는 보안 확장 프로그램",
+  "version": "1.1.0",
+  "description": "entV1 웹 보안 확장 프로그램",
   "permissions": [
     "storage",
     "tabs",
@@ -16,5 +16,11 @@
   },
   "action": {
     "default_popup": "popup.html"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["warning.html", "warning.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
