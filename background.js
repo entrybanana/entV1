@@ -1,37 +1,25 @@
 const ENTRY_HOST = "playentry.org";
 
-const defaultData = {
-    securityLevel: "strong",
-    blockedHistory: [],
-    reports: {}
-};
-
 chrome.runtime.onInstalled.addListener(async () => {
 
-    const data = await chrome.storage.local.get(
-        Object.keys(defaultData)
-    );
+    const data = await chrome.storage.local.get([
+        "securityLevel",
+        "blockedHistory",
+        "reports"
+    ]);
 
-    const newData = {};
-
-    for (const key in defaultData) {
-        if (data[key] === undefined) {
-            newData[key] = defaultData[key];
-        }
-    }
-
-    if (Object.keys(newData).length > 0) {
-        await chrome.storage.local.set(newData);
-    }
+    await chrome.storage.local.set({
+        securityLevel: data.securityLevel || "strong",
+        blockedHistory: data.blockedHistory || [],
+        reports: data.reports || {}
+    });
 });
 
 
-/*
- * 사용자가 사이트에 접근할 때 실행
- */
 chrome.webNavigation.onCommitted.addListener(
     async details => {
 
+        // 메인 프레임만 검사
         if (details.frameId !== 0) {
             return;
         }
@@ -42,15 +30,12 @@ chrome.webNavigation.onCommitted.addListener(
             return;
         }
 
-        await inspectURL(url);
+        await inspectURL(details.tabId, url);
     }
 );
 
 
-/*
- * URL 검사
- */
-async function inspectURL(url) {
+async function inspectURL(tabId, url) {
 
     const data = await chrome.storage.local.get([
         "securityLevel",
@@ -60,54 +45,82 @@ async function inspectURL(url) {
     const level = data.securityLevel || "strong";
     const reports = data.reports || {};
 
-    const parsed = new URL(url);
-
-    /*
-     * Entry는 정상 통과
-     */
-    if (isEntryURL(parsed)) {
-        return;
-    }
-
-    /*
-     * 신고된 링크 검사
-     */
-    const reportCount = reports[parsed.origin] || 0;
-
+    // 해제
     if (level === "off") {
         return;
     }
 
-    if (level === "strong" && reportCount >= 1) {
+    let parsed;
 
-        await blockURL(
+    try {
+        parsed = new URL(url);
+    } catch {
+        return;
+    }
+
+    // Entry는 통과
+    if (isEntryURL(parsed)) {
+        return;
+    }
+
+    const reportCount =
+        reports[parsed.origin] || 0;
+
+
+    /*
+     * 강함:
+     * 1명 이상 신고 → 자동 차단
+     */
+    if (
+        level === "strong" &&
+        reportCount >= 1
+    ) {
+
+        await block(
+            tabId,
             url,
-            "해킹 링크로 신고됨",
-            reportCount
+            `해킹 링크로 신고됨 (${reportCount}명)`
         );
 
         return;
     }
 
-    if (level === "weak" && reportCount >= 3) {
 
-        await blockURL(
+    /*
+     * 약함:
+     * 3명 이상 신고 → 자동 차단
+     */
+    if (
+        level === "weak" &&
+        reportCount >= 3
+    ) {
+
+        await block(
+            tabId,
             url,
-            "3명 이상이 해킹 링크로 신고함",
-            reportCount
+            `3명 이상이 해킹 링크로 신고함`
         );
 
         return;
     }
+
+
+    /*
+     * Entry가 아닌 외부 사이트
+     * → 사용자 확인
+     */
+    await askUser(
+        tabId,
+        url,
+        "최종 링크가 Entry 사이트가 아닙니다."
+    );
 }
 
 
-/*
- * playentry.org 및 하위 링크인지 확인
- */
 function isEntryURL(url) {
 
-    const hostname = url.hostname.toLowerCase();
+    const hostname =
+        url.hostname.toLowerCase();
 
     return (
         hostname === ENTRY_HOST ||
@@ -116,41 +129,82 @@ function isEntryURL(url) {
 }
 
 
-/*
- * 차단 기록 저장
- */
-async function blockURL(
+async function askUser(
+    tabId,
     url,
-    reason,
-    reportCount
+    reason
 ) {
 
-    const data = await chrome.storage.local.get(
-        ["blockedHistory"]
+    const warningURL =
+        chrome.runtime.getURL(
+            "warning.html"
+        ) +
+        "?target=" +
+        encodeURIComponent(url) +
+        "&reason=" +
+        encodeURIComponent(reason);
+
+    await chrome.tabs.update(
+        tabId,
+        {
+            url: warningURL
+        }
+    );
+}
+
+
+async function block(
+    tabId,
+    url,
+    reason
+) {
+
+    await saveBlock(
+        url,
+        reason
     );
 
-    const history = data.blockedHistory || [];
+    const warningURL =
+        chrome.runtime.getURL(
+            "warning.html"
+        ) +
+        "?target=" +
+        encodeURIComponent(url) +
+        "&reason=" +
+        encodeURIComponent(
+            "entV1이 이 링크를 차단했습니다."
+        );
+
+    await chrome.tabs.update(
+        tabId,
+        {
+            url: warningURL
+        }
+    );
+}
+
+
+async function saveBlock(
+    url,
+    reason
+) {
+
+    const data =
+        await chrome.storage.local.get(
+            "blockedHistory"
+        );
+
+    const history =
+        data.blockedHistory || [];
 
     history.push({
-        url,
-        reason,
-        reportCount,
+        url: url,
+        reason: reason,
         time: Date.now()
     });
 
-    /*
-     * 기록이 너무 커지지 않도록
-     * 최근 100개만 유지
-     */
-    const limitedHistory =
-        history.slice(-100);
-
     await chrome.storage.local.set({
-        blockedHistory: limitedHistory
+        blockedHistory:
+            history.slice(-100)
     });
-
-    /*
-     * 현재 탭에 경고 페이지를 띄우는 방식은
-     * 다음 단계에서 구현
-     */
 }
