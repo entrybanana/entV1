@@ -1,35 +1,26 @@
-const ENTRY_HOST = "playentry.org";
-
 const ALLOWED_HOSTS = [
     "playentry.org",
     "img.bloupla.net"
 ];
 
-const defaultData = {
-    securityLevel: "strong",
-    blockedHistory: [],
-    reports: {}
-};
-
-
-// 확장 프로그램 설치
 chrome.runtime.onInstalled.addListener(async () => {
 
     const data = await chrome.storage.local.get([
         "securityLevel",
         "blockedHistory",
-        "reports"
+        "reports",
+        "allowedOnce"
     ]);
 
     await chrome.storage.local.set({
         securityLevel: data.securityLevel || "strong",
         blockedHistory: data.blockedHistory || [],
-        reports: data.reports || {}
+        reports: data.reports || {},
+        allowedOnce: data.allowedOnce || []
     });
 });
 
 
-// 웹사이트 접속 감지
 chrome.webNavigation.onCommitted.addListener(
     async details => {
 
@@ -48,12 +39,12 @@ chrome.webNavigation.onCommitted.addListener(
 );
 
 
-// URL 검사
 async function inspectURL(tabId, url) {
 
     const data = await chrome.storage.local.get([
         "securityLevel",
-        "reports"
+        "reports",
+        "allowedOnce"
     ]);
 
     const level =
@@ -62,8 +53,11 @@ async function inspectURL(tabId, url) {
     const reports =
         data.reports || {};
 
+    const allowedOnce =
+        data.allowedOnce || [];
 
-    // 해제
+
+    // 보안 기능 해제
     if (level === "off") {
         return;
     }
@@ -80,6 +74,20 @@ async function inspectURL(tabId, url) {
 
     // 허용된 사이트
     if (isAllowedURL(parsed)) {
+        return;
+    }
+
+
+    // 사용자가 방금 허용한 링크
+    if (allowedOnce.includes(url)) {
+
+        const newAllowed =
+            allowedOnce.filter(item => item !== url);
+
+        await chrome.storage.local.set({
+            allowedOnce: newAllowed
+        });
+
         return;
     }
 
@@ -122,7 +130,7 @@ async function inspectURL(tabId, url) {
     }
 
 
-    // Entry가 아닌 사이트
+    // 외부 사이트
     await askUser(
         tabId,
         url,
@@ -131,14 +139,12 @@ async function inspectURL(tabId, url) {
 }
 
 
-// 허용 사이트 검사
 function isAllowedURL(url) {
 
     const hostname =
         url.hostname.toLowerCase();
 
     return ALLOWED_HOSTS.some(host => {
-
         return (
             hostname === host ||
             hostname.endsWith("." + host)
@@ -147,7 +153,6 @@ function isAllowedURL(url) {
 }
 
 
-// 사용자 확인 페이지
 async function askUser(
     tabId,
     url,
@@ -170,7 +175,6 @@ async function askUser(
 }
 
 
-// 링크 차단
 async function blockURL(
     tabId,
     url,
@@ -184,7 +188,6 @@ async function blockURL(
         reportCount
     );
 
-
     const warningURL =
         chrome.runtime.getURL("warning.html") +
         "?target=" +
@@ -193,7 +196,6 @@ async function blockURL(
         encodeURIComponent(
             "entV1이 위험한 링크를 차단했습니다."
         );
-
 
     await chrome.tabs.update(
         tabId,
@@ -204,7 +206,6 @@ async function blockURL(
 }
 
 
-// 차단 기록 저장
 async function saveBlock(
     url,
     reason,
@@ -219,14 +220,12 @@ async function saveBlock(
     const history =
         data.blockedHistory || [];
 
-
     history.push({
-        url: url,
-        reason: reason,
-        reportCount: reportCount,
+        url,
+        reason,
+        reportCount,
         time: Date.now()
     });
-
 
     await chrome.storage.local.set({
         blockedHistory:
