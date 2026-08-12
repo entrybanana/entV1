@@ -23,6 +23,7 @@ document.getElementById("message")
 
 // ========================================
 // 해킹 링크 신고
+// 같은 사용자는 같은 링크를 한 번만 신고 가능
 // ========================================
 
 document.getElementById("report")
@@ -40,22 +41,56 @@ document.getElementById("report")
                     new URL(target);
 
                 const data =
-                    await chrome.storage.local.get(
-                        "reports"
-                    );
+                    await chrome.storage.local.get([
+                        "reports",
+                        "myReports"
+                    ]);
 
                 const reports =
                     data.reports || {};
 
+                const myReports =
+                    data.myReports || [];
+
+
+                // 이미 신고했는지 확인
+                if (myReports.includes(url.origin)) {
+
+                    alert(
+                        "이 링크는 이미 신고하셨습니다."
+                    );
+
+                    return;
+                }
+
+
+                // 신고 횟수 증가
                 const key =
                     url.origin;
 
                 reports[key] =
                     (reports[key] || 0) + 1;
 
+
+                // 이 사용자가 신고한 링크 저장
+                myReports.push(key);
+
+
                 await chrome.storage.local.set({
-                    reports
+                    reports,
+                    myReports
                 });
+
+
+                // 다시 신고하지 못하도록 버튼 비활성화
+                const button =
+                    document.getElementById("report");
+
+                button.disabled = true;
+
+                button.textContent =
+                    "신고 완료";
+
 
                 alert(
                     "신고되었습니다.\n\n" +
@@ -94,6 +129,7 @@ document.getElementById("block")
                 const allowedOnce =
                     data.allowedOnce || [];
 
+
                 await chrome.storage.local.set({
 
                     allowedOnce:
@@ -105,7 +141,8 @@ document.getElementById("block")
                 });
             }
 
-            // 차단하면 Entry로 이동
+
+            // 차단 → Entry
             window.location.replace(
                 "https://playentry.org/"
             );
@@ -126,6 +163,7 @@ document.getElementById("allow")
                 return;
             }
 
+
             const data =
                 await chrome.storage.local.get(
                     "allowedOnce"
@@ -134,7 +172,8 @@ document.getElementById("allow")
             const allowedOnce =
                 data.allowedOnce || [];
 
-            // 한 번 허용
+
+            // 한 번만 허용
             if (!allowedOnce.includes(target)) {
 
                 allowedOnce.push(target);
@@ -144,8 +183,55 @@ document.getElementById("allow")
                 });
             }
 
+
             // 실제 사이트로 이동
             window.location.href =
                 target;
         }
     );
+
+
+// ========================================
+// 페이지를 열었을 때 이미 신고했으면
+// 버튼을 비활성화
+// ========================================
+
+async function checkAlreadyReported() {
+
+    if (!target) {
+        return;
+    }
+
+    const data =
+        await chrome.storage.local.get(
+            "myReports"
+        );
+
+    const myReports =
+        data.myReports || [];
+
+
+    try {
+
+        const key =
+            new URL(target).origin;
+
+
+        if (myReports.includes(key)) {
+
+            const button =
+                document.getElementById("report");
+
+            button.disabled = true;
+
+            button.textContent =
+                "신고 완료";
+        }
+
+    } catch {
+        // 잘못된 URL이면 무시
+    }
+}
+
+
+checkAlreadyReported();
